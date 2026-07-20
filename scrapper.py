@@ -228,49 +228,34 @@ def scrapeTopJobs():
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "html.parser")
 
-            # TopJobs lists jobs in div/table structures with vacancy links
-            # Look for job title links and text
-            jobElements = soup.find_all("a", href=True)
-            for element in jobElements:
-                href = element.get("href", "")
-                jobText = element.get_text(strip=True)
-
-                # TopJobs job links typically contain "vacancy" or "vac"
-                if ("vacancy" in href.lower() or "vac" in href.lower()) and jobText:
-                    cleanedJobText = cleanText(jobText)
-                    if isRelevantJob(cleanedJobText):
-                        jobUrl = href if href.startswith("http") else f"https://www.topjobs.lk/{href.lstrip('/')}"
-                        foundJobs.append({
-                            "title": cleanedJobText,
-                            "company": "TopJobs Listing",
-                            "url": jobUrl,
-                            "source": "TopJobs",
-                        })
-
-            # Also search all text blocks for internship mentions
-            allText = soup.find_all(["td", "div", "span", "h3", "h4", "p"])
-            for tag in allText:
-                tagText = cleanText(tag.get_text(strip=True))
-                if tagText and isRelevantJob(tagText) and len(tagText) < 200:
-                    # Try to find a nearby link
-                    parentLink = tag.find_parent("a")
-                    linkTag = tag.find("a") or parentLink
-                    jobUrl = ""
-                    if linkTag and linkTag.get("href"):
-                        href = linkTag["href"].strip()
-                        jobUrl = href if href.startswith("http") else f"https://www.topjobs.lk/{href.lstrip('/')}"
-
-                    # Avoid duplicates within this scrape
-                    isDuplicate = any(
-                        j["title"].lower() == tagText.lower() for j in foundJobs
-                    )
-                    if not isDuplicate and jobUrl:
-                        foundJobs.append({
-                            "title": tagText,
-                            "company": "TopJobs Listing",
-                            "url": jobUrl,
-                            "source": "TopJobs",
-                        })
+            # TopJobs uses table rows with onclick handlers for job listings
+            for tr in soup.find_all("tr", onclick=True):
+                onclick_attr = tr.get("onclick", "")
+                if "createAlert" in onclick_attr:
+                    # Extract params: createAlert('34','0000000019','0001526380','0000000019','...')
+                    match = re.search(r"createAlert\('([^']*)','([^']*)','([^']*)','([^']*)'", onclick_attr)
+                    if match:
+                        rid, ac, jc, ec = match.groups()
+                        jobUrl = f"https://www.topjobs.lk/employer/JobAdvertismentServlet?rid={rid}&ac={ac}&jc={jc}&ec={ec}&pg=applicant/vacancybyfunctionalarea.jsp"
+                        
+                        # Find title and company
+                        title_tag = tr.find("h2")
+                        company_tag = tr.find("h1")
+                        
+                        title = title_tag.get_text(strip=True) if title_tag else ""
+                        company = company_tag.get_text(strip=True) if company_tag else "TopJobs Listing"
+                        
+                        if title:
+                            cleanedJobText = cleanText(title)
+                            if isRelevantJob(cleanedJobText):
+                                isDuplicate = any(j["title"].lower() == cleanedJobText.lower() for j in foundJobs)
+                                if not isDuplicate:
+                                    foundJobs.append({
+                                        "title": cleanedJobText,
+                                        "company": cleanText(company),
+                                        "url": jobUrl,
+                                        "source": "TopJobs",
+                                    })
 
         except requests.RequestException as e:
             logger.error(f"TopJobs scrape failed for {categoryUrl}: {e}")
@@ -557,20 +542,21 @@ def sendEmailNotification(htmlBody, subject="🔔 New Internship Postings Found!
         return False
 
     recipientEmail = notifyEmail if notifyEmail else gmailAddress
+    recipients = [r.strip() for r in recipientEmail.split(",") if r.strip()]
 
     try:
         msg = MIMEMultipart("alternative")
         msg["From"] = gmailAddress
-        msg["To"] = recipientEmail
+        msg["To"] = ", ".join(recipients)
         msg["Subject"] = subject
 
         msg.attach(MIMEText(htmlBody, "html"))
 
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(gmailAddress, gmailAppPassword)
-            server.sendmail(gmailAddress, recipientEmail, msg.as_string())
+            server.sendmail(gmailAddress, recipients, msg.as_string())
 
-        logger.info(f"✅ Email notification sent to {recipientEmail}!")
+        logger.info(f"✅ Email notification sent to {', '.join(recipients)}!")
         return True
 
     except smtplib.SMTPAuthenticationError:
