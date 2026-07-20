@@ -259,7 +259,9 @@ def scrapeTopJobs():
                     match = re.search(r"createAlert\('([^']*)','([^']*)','([^']*)','([^']*)'", onclick_attr)
                     if match:
                         rid, ac, jc, ec = match.groups()
-                        jobUrl = f"https://www.topjobs.lk/employer/JobAdvertismentServlet?rid={rid}&ac={ac}&jc={jc}&ec={ec}&pg=applicant/vacancybyfunctionalarea.jsp"
+                        # We omit 'rid' (Row ID) from the URL because it changes as new jobs are posted,
+                        # which causes the deduplication hash to treat the same job as a new one!
+                        jobUrl = f"https://www.topjobs.lk/employer/JobAdvertismentServlet?ac={ac}&jc={jc}&ec={ec}&pg=applicant/vacancybyfunctionalarea.jsp"
                         
                         # Find title and company
                         title_tag = tr.find("h2")
