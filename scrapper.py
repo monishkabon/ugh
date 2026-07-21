@@ -721,7 +721,8 @@ def runScraper():
             logger.info(f"      {job['url']}")
 
         htmlBody = formatJobMessage(newJobs)
-        subject = f"🔔 {len(newJobs)} New Internship(s) Found!"
+        timestamp_str = datetime.now().strftime("%I:%M %p")
+        subject = f"🔔 {len(newJobs)} New Internship(s) Found! ({timestamp_str})"
         sendEmailNotification(htmlBody, subject)
     else:
         logger.info("\n✅ No new internship postings found. Will check again next run.")
