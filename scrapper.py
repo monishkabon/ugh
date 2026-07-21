@@ -120,6 +120,11 @@ targetSites = [
         "url": "https://lseg.wd3.myworkdayjobs.com/Careers",
         "method": "workday",
     },
+    {
+        "name": "Rooster",
+        "url": "https://rooster.jobs",
+        "method": "rooster",
+    },
 ]
 
 # Configure logging
@@ -551,6 +556,56 @@ def scrapeWorkday():
     return foundJobs
 
 
+def scrapeRooster(page):
+    """
+    Scrape rooster.jobs for internship listings.
+    """
+    foundJobs = []
+    queries = ["intern", "trainee"]
+    for query in queries:
+        url = f"https://rooster.jobs/?query={query}&limit=50&page=1"
+        try:
+            page.goto(url, wait_until="networkidle", timeout=45000)
+            page.wait_for_timeout(3000)
+
+            # Find all job cards/headers
+            headers = page.query_selector_all(".job-header-info")
+            for header in headers:
+                try:
+                    title_el = header.query_selector("a.job-title")
+                    company_el = header.query_selector(".company a")
+                    
+                    if title_el:
+                        title = cleanText(title_el.inner_text())
+                        href = title_el.get_attribute("href") or ""
+                        
+                        company = "Unknown Company"
+                        if company_el:
+                            company = cleanText(company_el.inner_text())
+                        
+                        if isRelevantJob(title):
+                            jobUrl = href
+                            if href and not href.startswith("http"):
+                                jobUrl = f"https://rooster.jobs{href}"
+                                
+                            isDuplicate = any(
+                                j["url"] == jobUrl for j in foundJobs
+                            )
+                            if not isDuplicate:
+                                foundJobs.append({
+                                    "title": title,
+                                    "company": company,
+                                    "url": jobUrl,
+                                    "source": "Rooster",
+                                })
+                except Exception as e:
+                    logger.debug(f"Error parsing Rooster job card: {e}")
+        except Exception as e:
+            logger.error(f"Rooster scrape failed for query '{query}': {e}")
+            
+    return foundJobs
+
+
 # ─── Email Notification ───────────────────────────────────────────────────────
 
 
@@ -676,7 +731,7 @@ def runScraper():
 
     # ── 2. Scrapers that need Playwright (JS-rendered sites) ──
     playwrightSites = [
-        site for site in targetSites if site["method"] == "playwright"
+        site for site in targetSites if site["method"] in ["playwright", "rooster"]
     ]
 
     if playwrightSites:
@@ -688,9 +743,12 @@ def runScraper():
 
                 for site in playwrightSites:
                     logger.info(f"  → {site['name']}...")
-                    siteResults = scrapeWithPlaywright(
-                        site["name"], site["url"], page
-                    )
+                    if site["method"] == "rooster":
+                        siteResults = scrapeRooster(page)
+                    else:
+                        siteResults = scrapeWithPlaywright(
+                            site["name"], site["url"], page
+                        )
                     logger.info(f"    Found {len(siteResults)} matching job(s)")
                     allFoundJobs.extend(siteResults)
 
