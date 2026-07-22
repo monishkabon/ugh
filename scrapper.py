@@ -1,4 +1,3 @@
-
 import os
 import re
 import json
@@ -124,6 +123,11 @@ targetSites = [
         "name": "Rooster",
         "url": "https://rooster.jobs",
         "method": "rooster",
+    },
+    {
+        "name": "ITPro",
+        "url": "https://itpro.lk/jobs/information-technology/",
+        "method": "itpro",
     },
 ]
 
