@@ -75,6 +75,10 @@ roleKeywords = [
     "iot security",
     "industrial security",
     "hardware security",
+    "it",
+    "system admin",
+    "systems admin",
+    "system administrator",
 ]
 
 
