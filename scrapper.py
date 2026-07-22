@@ -79,6 +79,8 @@ roleKeywords = [
     "system admin",
     "systems admin",
     "system administrator",
+    "qa",
+    "quality assurance",
 ]
 
 
