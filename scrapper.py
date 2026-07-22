@@ -606,6 +606,48 @@ def scrapeRooster(page):
     return foundJobs
 
 
+def scrapeITPro():
+    """Scrape itpro.lk using standard requests and BeautifulSoup."""
+    foundJobs = []
+    url = "https://itpro.lk/jobs/information-technology/"
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+
+    try:
+        response = requests.get(url, headers=headers, timeout=15)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        
+        jobCards = soup.find_all("article", class_="job-card")
+        for card in jobCards:
+            try:
+                link_el = card.find("a", href=True)
+                title_el = card.find("h2", class_="jc-title")
+                company_el = card.find("span", class_="jc-company")
+                
+                if link_el and title_el:
+                    title = cleanText(title_el.text)
+                    href = link_el["href"]
+                    company = cleanText(company_el.text) if company_el else "Unknown Company"
+                    
+                    if isRelevantJob(title):
+                        foundJobs.append({
+                            "title": title,
+                            "company": company,
+                            "url": href,
+                            "source": "ITPro",
+                        })
+            except Exception as e:
+                logger.debug(f"Error parsing ITPro job card: {e}")
+                
+    except requests.RequestException as e:
+        logger.error(f"ITPro scrape failed: {e}")
+
+    return foundJobs
+
+
 # ─── Email Notification ───────────────────────────────────────────────────────
 
 
@@ -728,6 +770,11 @@ def runScraper():
     lsegResults = scrapeWorkday()
     logger.info(f"    Found {len(lsegResults)} matching job(s)")
     allFoundJobs.extend(lsegResults)
+
+    logger.info("  → ITPro...")
+    itproResults = scrapeITPro()
+    logger.info(f"    Found {len(itproResults)} matching job(s)")
+    allFoundJobs.extend(itproResults)
 
     # ── 2. Scrapers that need Playwright (JS-rendered sites) ──
     playwrightSites = [
