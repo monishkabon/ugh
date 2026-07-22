@@ -1,9 +1,9 @@
 name: Internship Job Scraper
 
 on:
-  # Run every hour
+  # Run every hour (at the 17th minute to avoid GitHub's top-of-the-hour queue delays)
   schedule:
-    - cron: '0 * * * *'
+    - cron: '17 * * * *'
   # Allow manual trigger from GitHub UI
   workflow_dispatch:
 
