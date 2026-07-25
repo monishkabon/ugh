@@ -24,7 +24,7 @@ SEEN_JOBS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "seenj
 gmailAddress = os.getenv("GMAIL_ADDRESS", "")
 gmailAppPassword = os.getenv("GMAIL_APP_PASSWORD", "")
 notifyEmail = os.getenv("NOTIFY_EMAIL", "")  # recipient (defaults to sender)
-strictRoleMatch = os.getenv("STRICT_ROLE_MATCH", "false").lower() == "true"
+strictRoleMatch = os.getenv("STRICT_ROLE_MATCH", "true").lower() == "true"
 
 
 internKeywords = ["intern", "internship", "trainee", "industrial training"]
@@ -81,6 +81,75 @@ roleKeywords = [
     "system administrator",
     "qa",
     "quality assurance",
+    # Additional tech roles
+    "frontend",
+    "front-end",
+    "front end",
+    "full stack",
+    "fullstack",
+    "mobile develop",
+    "web develop",
+    "web dev",
+    "ui developer",
+    "ux developer",
+    "ui/ux",
+    "application develop",
+    "app develop",
+    "programmer",
+    "network engineer",
+    "network admin",
+    "system engineer",
+    "test engineer",
+    "automation engineer",
+    "software testing",
+    "software quality",
+    "site reliability",
+    "sre",
+    "platform engineer",
+    "infrastructure engineer",
+    "technical support",
+    "tech support",
+    "application support",
+    "help desk",
+    "service desk",
+    "java develop",
+    "python develop",
+    "javascript",
+    "react",
+    "angular",
+    "node",
+    "sql develop",
+    "power bi",
+    "tableau",
+    "tester",
+    "quality engineer",
+    "embedded",
+    "firmware",
+    "solution architect",
+    "technical architect",
+    "data engineering",
+    "software engineering",
+    "tech intern",
+    "product develop",
+    "research & develop",
+    "r&d",
+    "blockchain",
+    "data warehouse",
+    "etl",
+    "agile",
+    "tech lead",
+    "technical lead",
+    "scrum master",
+    "information technology",
+    "computer science",
+    "computer engineering",
+    "software",
+    "coding",
+    "programming",
+    "development intern",
+    "technology intern",
+    "tech",
+    "dba",
 ]
 
 
@@ -197,9 +266,24 @@ def matchesInternship(jobTitle):
 
 
 def matchesRole(jobTitle):
-    """Check if a job title matches any of the target DS roles."""
+    """Check if a job title matches any of the target tech/DS roles.
+    
+    Uses word-boundary matching for single-word keywords to avoid false
+    positives (e.g., 'it' won't match 'digital', 'qa' won't match 'qualification').
+    Multi-word phrases use substring matching.
+    """
     titleLower = jobTitle.lower()
-    return any(keyword in titleLower for keyword in roleKeywords)
+    for keyword in roleKeywords:
+        if len(keyword.split()) == 1:
+            # Single word — use word boundaries to avoid false positives
+            pattern = r"\b" + re.escape(keyword) + r"\b"
+            if re.search(pattern, titleLower):
+                return True
+        else:
+            # Multi-word phrase — substring match is fine
+            if keyword in titleLower:
+                return True
+    return False
 
 
 def isRelevantJob(jobTitle):
