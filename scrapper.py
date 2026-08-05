@@ -149,7 +149,7 @@ roleKeywords = [
     "development intern",
     "technology intern",
     "tech",
-    "dba",
+    "dba", "business analysis","systems analysis","it support specialist","business system consultant","erp support","project management","data analyst","database administrator","business intelligence engineering","application support engineer","integration specialist","software testing - manual","software testing - automation","requirements engineering","ui/ux engineering",
 ]
 
 
