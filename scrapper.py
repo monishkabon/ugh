@@ -1,7 +1,6 @@
 import os
 import re
 import json
-import unicodedata
 import hashlib
 import logging
 import smtplib
@@ -149,7 +148,21 @@ roleKeywords = [
     "development intern",
     "technology intern",
     "tech",
-    "dba", "business analysis","systems analysis","it support specialist","business system consultant","erp support","project management","data analyst","database administrator","business intelligence engineering","application support engineer","integration specialist","software testing - manual","software testing - automation","requirements engineering","ui/ux engineering",
+    "dba",
+    "business analysis",
+    "systems analysis",
+    "it support specialist",
+    "business system consultant",
+    "erp support",
+    "project management",
+    "database administrator",
+    "business intelligence engineering",
+    "application support engineer",
+    "integration specialist",
+    "software testing - manual",
+    "software testing - automation",
+    "requirements engineering",
+    "ui/ux engineering",
 ]
 
 
@@ -357,7 +370,7 @@ def scrapeTopJobs():
                     # Extract params: createAlert('34','0000000019','0001526380','0000000019','...')
                     match = re.search(r"createAlert\('([^']*)','([^']*)','([^']*)','([^']*)'", onclick_attr)
                     if match:
-                        rid, ac, jc, ec = match.groups()
+                        _, ac, jc, ec = match.groups()
                         # We omit 'rid' (Row ID) from the URL because it changes as new jobs are posted,
                         # which causes the deduplication hash to treat the same job as a new one!
                         jobUrl = f"https://www.topjobs.lk/employer/JobAdvertismentServlet?ac={ac}&jc={jc}&ec={ec}&pg=applicant/vacancybyfunctionalarea.jsp"
@@ -406,19 +419,23 @@ def scrapeWithPlaywright(siteName, siteUrl, page):
                 href = link.get_attribute("href") or ""
 
                 if linkText and isRelevantJob(linkText):
-                    jobUrl = href
-                    if href and not href.startswith("http"):
-                        # Resolve relative URLs
-                        baseParts = urllib.parse.urlparse(siteUrl)
-                        baseUrl = f"{baseParts.scheme}://{baseParts.netloc}"
-                        jobUrl = urllib.parse.urljoin(baseUrl, href)
+                    isDuplicate = any(
+                        j["title"].lower() == linkText.lower() for j in foundJobs
+                    )
+                    if not isDuplicate:
+                        jobUrl = href
+                        if href and not href.startswith("http"):
+                            # Resolve relative URLs
+                            baseParts = urllib.parse.urlparse(siteUrl)
+                            baseUrl = f"{baseParts.scheme}://{baseParts.netloc}"
+                            jobUrl = urllib.parse.urljoin(baseUrl, href)
 
-                    foundJobs.append({
-                        "title": linkText,
-                        "company": siteName,
-                        "url": jobUrl or siteUrl,
-                        "source": siteName,
-                    })
+                        foundJobs.append({
+                            "title": linkText,
+                            "company": siteName,
+                            "url": jobUrl or siteUrl,
+                            "source": siteName,
+                        })
             except Exception:
                 continue
 
