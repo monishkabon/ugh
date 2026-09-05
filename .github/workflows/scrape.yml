@@ -7,6 +7,11 @@ on:
   # Allow manual trigger from GitHub UI
   workflow_dispatch:
 
+# Prevent concurrent runs from colliding on the state branch
+concurrency:
+  group: internship-scraper
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -17,6 +22,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -44,18 +51,34 @@ jobs:
           pip install -r requirements.txt
           playwright install chromium --with-deps
 
+      - name: Restore seen jobs state
+        run: |
+          # Retrieve seenjobs.txt from the dedicated state branch if it exists
+          git fetch origin state:state 2>/dev/null || true
+          git show state:seenjobs.txt > seenjobs.txt 2>/dev/null || touch seenjobs.txt
+          echo "Loaded seen jobs ($(wc -l < seenjobs.txt | tr -d ' ') entries)"
+
       - name: Run scraper
         env:
           GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
           STRICT_ROLE_MATCH: ${{ secrets.STRICT_ROLE_MATCH }}
-        run: python scrapper.py
+        run: python main.py
 
-      - name: Persist seen jobs
+      - name: Persist seen jobs to state branch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Ensure state branch exists locally
+          git fetch origin state:state 2>/dev/null || git branch state
+
+          # Use a separate worktree so the main working copy is never dirtied or committed to
+          git worktree add ../state-worktree state
+          cp seenjobs.txt ../state-worktree/seenjobs.txt
+          cd ../state-worktree
           git add seenjobs.txt
-          git diff --cached --quiet || git commit -m "chore: update seen jobs [skip ci]"
-          git push
+          git diff --cached --quiet || (git commit -m "chore: update seen jobs [skip ci]" && git push origin state)
+          cd -
+          git worktree remove ../state-worktree
