@@ -54,7 +54,7 @@ jobs:
       - name: Restore seen jobs state
         run: |
           # Retrieve seenjobs.txt from the dedicated state branch if it exists
-          git fetch origin state:state 2>/dev/null || true
+          git fetch origin +state:state 2>/dev/null || true
           git show state:seenjobs.txt > seenjobs.txt 2>/dev/null || touch seenjobs.txt
           echo "Loaded seen jobs ($(wc -l < seenjobs.txt | tr -d ' ') entries)"
 
@@ -71,14 +71,27 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Ensure state branch exists locally
-          git fetch origin state:state 2>/dev/null || git branch state
+          # Sync state branch from remote if available
+          git fetch origin +state:state 2>/dev/null || true
+
+          # If state branch doesn't exist locally, initialize it as a clean orphan branch
+          if ! git rev-parse --verify state >/dev/null 2>&1; then
+            BLOB=$(git hash-object -w seenjobs.txt)
+            TREE=$(printf "100644 blob %s\tseenjobs.txt\n" "$BLOB" | git mktree)
+            COMMIT=$(git commit-tree "$TREE" -m "Initial state: seen jobs database")
+            git update-ref refs/heads/state "$COMMIT"
+          fi
+
+          # Clean up any lingering worktree from previous runs
+          rm -rf ../state-worktree
+          git worktree prune
 
           # Use a separate worktree so the main working copy is never dirtied or committed to
           git worktree add ../state-worktree state
           cp seenjobs.txt ../state-worktree/seenjobs.txt
           cd ../state-worktree
-          git add seenjobs.txt
+          git add -f seenjobs.txt
           git diff --cached --quiet || (git commit -m "chore: update seen jobs [skip ci]" && git push origin state)
           cd -
-          git worktree remove ../state-worktree
+          rm -rf ../state-worktree
+          git worktree prune
